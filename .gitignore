@@ -4,5 +4,4 @@ __pycache__/
 dist/
 .pytest_cache/
 .ruff_cache/
-.moodle-state.json
 .DS_Store
