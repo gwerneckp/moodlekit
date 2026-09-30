@@ -1,4 +1,18 @@
-# moodlekit
+<p align="center">
+  <img src="assets/logo.svg" alt="moodlekit logo" width="128">
+</p>
+
+<h1 align="center">moodlekit</h1>
+
+<p align="center"><b>Your Moodle, programmable.</b> Python API · CLI · AI agents, with the login you already have.</p>
+
+<p align="center">
+  <a href="https://github.com/gwerneckp/moodlekit/blob/main/assets/demo.mp4">
+    <img src="https://raw.githubusercontent.com/gwerneckp/moodlekit/main/assets/demo.gif" alt="moodlekit demo: listing courses, seeing unreleased items, syncing new material, HTML notes to PDF, the Python API, and asking an agent what's new." width="800">
+  </a>
+  <br>
+  <sub>▶️ <a href="https://github.com/gwerneckp/moodlekit/blob/main/assets/demo.mp4">Watch the video</a></sub>
+</p>
 
 Use Moodle from Python, the command line, or an AI agent, **with the login you already have in your browser**. No API token needed, so it works even where the university uses single sign-on (Microsoft, Google, SAML) and has disabled Moodle's mobile/web-service token.
 
