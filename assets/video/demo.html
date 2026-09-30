@@ -1,0 +1,324 @@
+<!doctype html>
+<!--
+  moodlekit README animation. Every frame is a pure function of time: render(t).
+  Rendered to video by render_media.py (Playwright screenshots + ffmpeg).
+  Open this file in a browser to preview it live.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a1628; --stone: #e8c170; --stone-light: #f6e3b4;
+    --teal: #3dd6c4; --coral: #ff7a6b; --lilac: #a99bff; --white: #f5f7fa; --muted: #8fa3bf;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--navy); }
+  #stage {
+    position: relative; width: 1280px; height: 720px; overflow: hidden;
+    background: radial-gradient(ellipse 90% 80% at 50% 38%, #17315a 0%, #0f2140 45%, var(--navy) 100%);
+    font-family: "Nunito", system-ui, sans-serif; color: var(--white);
+  }
+  canvas, #crescent { position: absolute; inset: 0; }
+  .abs { position: absolute; will-change: transform, opacity; }
+  .logo { display: block; filter: drop-shadow(0 16px 36px rgba(232, 193, 112, .3)); }
+  .word { font-weight: 900; letter-spacing: -2px; line-height: 1; }
+  .word .kit { color: var(--stone); }
+
+  /* ---- title + end card ---- */
+  .card { left: 0; right: 0; display: flex; flex-direction: column; align-items: center; }
+  #title { top: 118px; }
+  #title .word { font-size: 92px; margin-top: 10px; }
+  #tag { font-weight: 800; font-size: 30px; color: var(--muted); margin-top: 12px; }
+  #tag b { color: var(--white); }
+  #pills { display: flex; gap: 16px; margin-top: 34px; }
+  .pill {
+    font-weight: 800; font-size: 23px; padding: 10px 20px; border-radius: 999px;
+    color: var(--navy); box-shadow: 0 6px 0 rgba(0,0,0,.25); white-space: nowrap;
+  }
+  .mono { font-family: "JetBrains Mono", monospace; font-weight: 700; }
+  #end { top: 150px; }
+  #end .word { font-size: 84px; margin-top: 8px; }
+  #end .url { margin-top: 26px; font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 24px;
+              color: var(--navy); background: var(--stone); padding: 10px 22px; border-radius: 12px;
+              box-shadow: 0 6px 0 rgba(0,0,0,.25); }
+  #end .sub { margin-top: 20px; font-weight: 800; font-size: 22px; color: var(--muted); }
+
+  /* ---- demo scene ---- */
+  #label { left: 0; right: 0; top: 70px; text-align: center; font-weight: 900; font-size: 46px; }
+  #label .hl { color: var(--stone); }
+  #term {
+    left: 170px; top: 158px; width: 940px; height: 410px; border-radius: 18px;
+    background: #0b1322; border: 1.5px solid #263c61;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5); overflow: hidden;
+  }
+  #term .bar { height: 44px; background: #111c30; display: flex; align-items: center; padding: 0 18px;
+               gap: 9px; border-bottom: 1px solid #1d2d4a; }
+  #term .dot { width: 13px; height: 13px; border-radius: 50%; }
+  #term .ttl { flex: 1; text-align: center; font-family: "JetBrains Mono", monospace; font-size: 15px;
+               color: var(--muted); margin-right: 60px; }
+  #body { padding: 24px 32px; font-family: "JetBrains Mono", monospace; font-size: 23px; line-height: 1.55;
+          white-space: pre; font-variant-ligatures: none; }
+  .ps { color: var(--teal); } .dim { color: #6f84a6; } .ok { color: var(--teal); }
+  .gold { color: var(--stone); } .kw { color: var(--coral); } .str { color: #9be29b; } .fn { color: var(--lilac); }
+  .tagx { font-size: 17px; color: var(--navy); background: var(--stone); padding: 1px 8px; border-radius: 6px; }
+  .caret { display: inline-block; width: 12px; height: 25px; background: var(--stone); vertical-align: -5px; margin-left: 2px; }
+  .bubble { display: inline-block; font-family: "Nunito", sans-serif; font-weight: 800; font-size: 24px;
+            padding: 10px 18px; border-radius: 18px; white-space: normal; line-height: 1.35; }
+  .me { background: var(--lilac); color: var(--navy); border-bottom-right-radius: 4px; }
+  .ai { background: #1b2b47; color: var(--white); border-bottom-left-radius: 4px; }
+  .tool { display: inline-block; font-size: 18px; color: var(--stone); border: 1.5px dashed #6b5a36;
+          padding: 3px 12px; border-radius: 8px; }
+  .pdf { display: inline-flex; align-items: center; gap: 14px; margin-top: 6px; font-family: "Nunito", sans-serif;
+         white-space: normal; background: #16233b; border: 1.5px solid #3a4d70; border-radius: 14px; padding: 12px 18px; }
+  .pdf .doc { width: 44px; height: 56px; border-radius: 6px; background: var(--white); position: relative; }
+  .pdf .doc::after { content: "PDF"; position: absolute; bottom: 6px; left: 5px; right: 5px; text-align: center;
+                     font: 900 11px "Nunito"; color: #fff; background: var(--coral); border-radius: 3px; }
+  .pdf b { font-size: 22px; } .pdf span { color: var(--muted); font-weight: 700; font-size: 18px; }
+  #steps { left: 0; right: 0; top: 598px; display: flex; justify-content: center; gap: 10px; }
+  #steps i { width: 30px; height: 8px; border-radius: 4px; background: #263c61; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="fx" width="1280" height="720"></canvas>
+  <svg id="crescent" viewBox="0 0 1280 720"></svg>
+
+  <div id="title" class="abs card">
+    <img id="logo" class="logo" src="../logo.svg" width="160" height="160" alt="">
+    <div class="word">moodle<span class="kit">kit</span></div>
+    <div id="tag">Your Moodle, <b>programmable.</b></div>
+    <div id="pills">
+      <div class="pill" style="background:var(--stone)">🐍 Python API</div>
+      <div class="pill" style="background:var(--teal)"><span class="mono">&gt;_</span> CLI</div>
+      <div class="pill" style="background:var(--lilac)">🤖 AI agents</div>
+      <div class="pill" style="background:var(--coral)">🔑 Your SSO login</div>
+    </div>
+  </div>
+
+  <div id="label" class="abs"></div>
+  <div id="term" class="abs">
+    <div class="bar">
+      <i class="dot" style="background:#ff5f57"></i><i class="dot" style="background:#febc2e"></i>
+      <i class="dot" style="background:#28c840"></i><div class="ttl" id="ttl"></div>
+    </div>
+    <div id="body"></div>
+  </div>
+  <div id="steps" class="abs"></div>
+
+  <div id="end" class="abs card">
+    <img id="endlogo" class="logo" src="../logo.svg" width="140" height="140" alt="">
+    <div class="word">moodle<span class="kit">kit</span></div>
+    <div class="url">github.com/gwerneckp/moodlekit</div>
+    <div class="sub">Made at the University of Bath 🎓</div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const outCubic = (p) => 1 - Math.pow(1 - p, 3);
+const inCubic = (p) => p * p * p;
+const outBack = (p) => { const c = 1.9; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+const set = (el, { x = 0, y = 0, s = 1, r = 0, o = 1 }) => {
+  el.style.transform = `translate(${x}px, ${y}px) scale(${s}) rotate(${r}deg)`;
+  el.style.opacity = o;
+};
+const type = (text, p) => text.slice(0, Math.round(text.length * clamp(p)));
+const line = (html, u, at) => (u >= at ? html : "");
+const caret = (u) => `<span class="caret" style="opacity:${Math.floor(u * 14) % 2 ? 0 : 1}"></span>`;
+const prompt = (cmd, u, end = 0.16) =>
+  `<span class="ps">$</span> ${type(cmd, seg(u, 0.02, end))}${u < end + 0.04 ? caret(u) : ""}\n`;
+
+// ---------------------------------------------------------------- the demos
+// len: seconds on screen. body(u): terminal HTML at progress u in [0, 1].
+const demos = [
+  { len: 1.25, label: 'List your <span class="hl">courses</span>', title: "~/uni — zsh", body: (u) => {
+    let s = prompt("moodle courses", u);
+    [["61802", "MA22038", "Probabilistic Modelling"], ["61789", "MA22014", "Statistics 2A"],
+     ["61795", "MA22020", "Advanced Linear Algebra"], ["61731", "CM22008", "Algorithms and Complexity"],
+     ["61732", "CM22009", "Machine Learning"]].forEach(([id, code, name], i) => {
+      s += line(`<span class="dim">${id}</span>  <span class="gold">${code}</span>  ${name}\n`, u, 0.22 + i * 0.04);
+    });
+    return s;
+  }},
+  { len: 1.3, label: 'See what\'s <span class="hl">coming</span>', title: "~/uni — zsh", body: (u) => {
+    let s = prompt("moodle ls MA22038", u);
+    s += line(`<span class="gold">## Problem Sheets</span>\n`, u, 0.22);
+    s += line(`  <span class="dim">resource</span>  Problem Sheet 1 (pdf)\n`, u, 0.26);
+    s += line(`  <span class="dim">resource</span>  Sheet 1 solutions to tutorial questions\n`, u, 0.3);
+    s += line(`  <span class="dim">resource</span>  Sheet 1 remaining solutions  <span class="tagx">not available yet</span>\n`, u, 0.36);
+    s += line(`<span class="gold">## Lecture Notes</span>\n`, u, 0.42);
+    s += line(`  <span class="dim">resource</span>  Lecture Notes\n`, u, 0.46);
+    return s;
+  }},
+  { len: 1.3, label: 'Sync new <span class="hl">material</span>', title: "~/uni — zsh", body: (u) => {
+    let s = prompt("moodle sync", u);
+    s += line(`\n<span class="ok">Downloaded:</span>\n`, u, 0.22);
+    s += line(`  <span class="ok">✓</span> Problem Sheet 1 <span class="dim">→ Problem Sheets/</span>\n`, u, 0.27);
+    s += line(`  <span class="ok">✓</span> Mock exam + solutions <span class="dim">→ Mocks/</span>\n`, u, 0.31);
+    s += line(`\n<span class="gold">Listed, not released yet:</span>\n`, u, 0.38);
+    s += line(`  <span class="gold">⏳</span> Sheet 1 solutions to remaining questions\n`, u, 0.42);
+    return s;
+  }},
+  { len: 1.25, label: 'HTML notes → <span class="hl">one PDF</span>', title: "~/uni — zsh", body: (u) => {
+    let s = prompt("moodle get …/resource/view.php?id=1460594 --pdf notes.pdf", u, 0.28);
+    s += line(`notes.pdf\n`, u, 0.4);
+    s += line(`<div class="pdf"><div class="doc"></div><div><b>notes.pdf</b><br><span>all 22 chapters · 71 pages · maths included</span></div></div>`, u, 0.5);
+    return s;
+  }},
+  { len: 1.45, label: 'Script it in <span class="hl">Python</span>', title: "~/uni — python", body: (u) => {
+    const code = [
+      `<span class="kw">from</span> moodlekit <span class="kw">import</span> Moodle`,
+      ``,
+      `m = Moodle(<span class="str">"https://moodle.bath.ac.uk"</span>, browser=<span class="str">"firefox"</span>)`,
+      `<span class="kw">for</span> act <span class="kw">in</span> m.<span class="fn">activities</span>(<span class="str">"MA22038"</span>):`,
+      `    <span class="kw">if</span> act.available <span class="kw">and</span> act.type == <span class="str">"resource"</span>:`,
+      `        m.<span class="fn">download</span>(act, <span class="str">"notes/"</span>)`,
+    ];
+    let s = code.map((l, i) => line(l + "\n", u, 0.03 + i * 0.07)).join("");
+    s += line(`\n<span class="dim"># → every released file, straight into notes/</span>`, u, 0.6);
+    return s;
+  }},
+  { len: 1.5, label: 'Ask your <span class="hl">agent</span>', title: "agent — moodle mcp", body: (u) => {
+    let s = line(`<div style="text-align:right"><span class="bubble me">${type("Anything new on Moodle this week?", seg(u, 0, 0.18))}</span></div>`, u, 0);
+    s += line(`<span class="tool">▸ moodle.whats_new()</span>\n`, u, 0.24);
+    s += line(`<span class="bubble ai">📄 <b>Sheet 1</b> is up for MA22038. Its remaining solutions unlock on <span class="gold">Mon 12:15</span>, want me to grab them then?</span>`, u, 0.34);
+    return s;
+  }},
+];
+
+const DEMO_START = 1.0;
+let acc = DEMO_START;
+demos.forEach((d) => { d.a = acc; acc += d.len; d.b = acc; });
+const END_START = acc;
+const DURATION = END_START + 1.6;
+$("#steps").innerHTML = demos.map(() => "<i></i>").join("");
+
+// ---------------------------------------------------------------- background
+// Royal Crescent: a shallow arc of Georgian facade with columns, drawn as a line sketch.
+const crescent = (() => {
+  const svg = $("#crescent"), n = 46, cx = 640, rx = 560, top = 618, depth = 70, h = 64;
+  const pt = (i) => { const a = Math.PI * (i / n); return [cx - rx * Math.cos(a), top + depth * Math.sin(a)]; };
+  let d = "", base = "", cols = "";
+  for (let i = 0; i <= n; i++) {
+    const [x, y] = pt(i);
+    d += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+    base += (i ? "L" : "M") + x.toFixed(1) + " " + (y + h).toFixed(1);
+    if (i % 2 === 0) cols += `M${x.toFixed(1)} ${(y + 10).toFixed(1)} V${(y + h).toFixed(1)}`;
+  }
+  svg.innerHTML = `<g fill="none" stroke="#e8c170" stroke-linecap="round">
+    <path d="${d}" stroke-width="2.5"/><path d="${base}" stroke-width="2"/><path d="${cols}" stroke-width="1.6"/></g>`;
+  const paths = [...svg.querySelectorAll("path")];
+  paths.forEach((p) => { p.dataset.len = p.getTotalLength(); p.style.strokeDasharray = p.dataset.len; });
+  return (p, o) => {
+    paths.forEach((path, k) => { path.style.strokeDashoffset = path.dataset.len * (1 - outCubic(seg(p, k * .12, 1))); });
+    svg.style.opacity = o;
+  };
+})();
+
+// Rays + confetti bursts on a canvas. Deterministic pseudo-random so every render is identical.
+const fx = (() => {
+  const ctx = $("#fx").getContext("2d");
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const colors = ["#e8c170", "#3dd6c4", "#ff7a6b", "#a99bff", "#f6e3b4"];
+  const bits = Array.from({ length: 80 }, () => ({
+    x: rnd() * 1280, y0: -40 - rnd() * 500, v: 240 + rnd() * 260, sw: 20 + rnd() * 40,
+    ph: rnd() * 6.28, w: 6 + rnd() * 8, h: 3 + rnd() * 4, c: colors[Math.floor(rnd() * 5)], spin: 2 + rnd() * 6,
+  }));
+  return (t, raysO, bursts) => {
+    ctx.clearRect(0, 0, 1280, 720);
+    if (raysO > 0) {
+      ctx.save(); ctx.translate(640, 250); ctx.rotate(t * 0.1);
+      for (let i = 0; i < 24; i++) {
+        ctx.rotate(Math.PI / 12);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(900, -55); ctx.lineTo(900, 55); ctx.closePath();
+        ctx.fillStyle = `rgba(120, 160, 230, ${0.035 * raysO})`; ctx.fill();
+      }
+      ctx.restore();
+    }
+    for (const [t0, o] of bursts) {
+      const dt = t - t0;
+      if (dt < 0 || o <= 0) continue;
+      ctx.globalAlpha = o;
+      for (const b of bits) {
+        const y = b.y0 + b.v * dt, x = b.x + Math.sin(dt * 3 + b.ph) * b.sw;
+        if (y < -20 || y > 740) continue;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(dt * b.spin + b.ph);
+        ctx.fillStyle = b.c; ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h); ctx.restore();
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+})();
+
+// ---------------------------------------------------------------- one frame
+function render(t) {
+  const loopOut = inCubic(seg(t, DURATION - 0.22, DURATION));   // fade so the loop restarts cleanly
+
+  // title: 0 → 1s
+  const out = inCubic(seg(t, 0.8, 0.98));
+  set($("#logo"), { s: outBack(seg(t, 0.02, 0.32)), r: (1 - seg(t, 0.02, 0.32)) * -20, o: seg(t, 0.02, 0.12) });
+  set($("#title .word"), { y: 30 * (1 - outCubic(seg(t, 0.1, 0.36))), o: seg(t, 0.1, 0.26) });
+  set($("#tag"), { y: 20 * (1 - outCubic(seg(t, 0.22, 0.44))), o: seg(t, 0.22, 0.38) });
+  [...document.querySelectorAll(".pill")].forEach((el, i) => {
+    const p = seg(t, 0.34 + i * 0.07, 0.54 + i * 0.07);
+    set(el, { y: 26 * (1 - outCubic(p)), s: 0.6 + 0.4 * outBack(p), r: (i % 2 ? 3 : -3) * (1 - p), o: clamp(p * 3) });
+  });
+  set($("#title"), { y: -120 * out, s: 1 - 0.1 * out, o: 1 - out });
+
+  // demos: terminal from ~1s until the end card
+  const termIn = outCubic(seg(t, 0.95, 1.15)), termOut = inCubic(seg(t, END_START - 0.05, END_START + 0.2));
+  set($("#term"), { y: 90 * (1 - termIn) + 60 * termOut, s: 0.94 + 0.06 * termIn - 0.06 * termOut,
+                    o: termIn * (1 - termOut) });
+  set($("#steps"), { o: termIn * (1 - termOut) });
+  const cur = demos.findIndex((d) => t >= d.a && t < d.b);
+  const d = demos[cur === -1 ? (t < DEMO_START ? 0 : demos.length - 1) : cur];
+  const u = clamp((t - d.a) / d.len);
+  $("#label").innerHTML = d.label;
+  $("#ttl").textContent = d.title;
+  $("#body").innerHTML = d.body(u);
+  const labelIn = outBack(seg(u, 0, 0.14)), labelOut = inCubic(seg(u, 0.92, 1));
+  set($("#label"), { y: 24 * (1 - labelIn) - 20 * labelOut, s: 0.9 + 0.1 * labelIn,
+                     o: termIn * clamp(labelIn) * (1 - labelOut) * (1 - termOut) });
+  $("#body").style.opacity = 1 - labelOut * 0.9;
+  [...document.querySelectorAll("#steps i")].forEach((el, i) => {
+    el.style.background = i === cur ? "#e8c170" : i < cur ? "#6b5a36" : "#263c61";
+  });
+
+  // end card
+  const e = t - END_START;
+  set($("#endlogo"), { s: outBack(seg(e, 0.1, 0.4)), r: (1 - seg(e, 0.1, 0.4)) * 20, o: seg(e, 0.1, 0.2) * (1 - loopOut) });
+  set($("#end .word"), { y: 24 * (1 - outCubic(seg(e, 0.18, 0.42))), o: seg(e, 0.18, 0.32) * (1 - loopOut) });
+  set($("#end .url"), { y: 20 * (1 - outCubic(seg(e, 0.3, 0.52))), s: 0.8 + 0.2 * outBack(seg(e, 0.3, 0.52)),
+                        o: seg(e, 0.3, 0.42) * (1 - loopOut) });
+  set($("#end .sub"), { o: seg(e, 0.45, 0.6) * (1 - loopOut) });
+  set($("#end"), {});
+
+  // background
+  const bgIn = seg(t, 0, 0.25);
+  const crescentO = 0.32 * bgIn * (1 - 0.6 * out) + 0.3 * seg(e, 0, 0.4);
+  crescent(seg(t, 0.05, 0.75), crescentO * (1 - loopOut));
+  fx(t, bgIn * (1 - loopOut), [
+    [0.25, 1 - seg(t, 1.1, 1.4)],
+    [END_START + 0.25, 1 - loopOut],
+  ]);
+}
+
+window.DURATION = DURATION;
+window.render = render;
+window.ready = Promise.all([document.fonts.ready,
+  ...[...document.images].map((img) => img.decode().catch(() => {}))]).then(() => true);
+
+// Live preview when opened directly in a browser.
+if (!navigator.webdriver) {
+  const start = performance.now();
+  const tick = () => { render(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(tick); };
+  window.ready.then(tick);
+}
+</script>
+</body>
+</html>

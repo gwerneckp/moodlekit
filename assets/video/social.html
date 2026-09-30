@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- GitHub social preview card (1280x640). Rendered by render_media.py. -->
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&family=JetBrains+Mono:wght@700&display=block" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  #card {
+    width: 1280px; height: 640px; position: relative; overflow: hidden;
+    background: radial-gradient(ellipse 80% 90% at 30% 45%, #17315a 0%, #0f2140 50%, #0a1628 100%);
+    font-family: "Nunito", sans-serif; color: #f5f7fa;
+    display: flex; align-items: center; gap: 56px; padding: 0 110px;
+  }
+  svg.crescent { position: absolute; inset: 0; opacity: .28; }
+  img { filter: drop-shadow(0 20px 40px rgba(232, 193, 112, .3)); position: relative; }
+  .text { position: relative; }
+  .word { font-weight: 900; font-size: 118px; letter-spacing: -3px; line-height: 1; }
+  .kit { color: #e8c170; }
+  .tag { font-weight: 800; font-size: 38px; color: #8fa3bf; margin-top: 14px; }
+  .tag b { color: #f5f7fa; }
+  .pills { display: flex; gap: 14px; margin-top: 30px; }
+  .pill { font-weight: 800; font-size: 24px; padding: 9px 20px; border-radius: 999px; color: #0a1628;
+          box-shadow: 0 6px 0 rgba(0,0,0,.25); }
+  .mono { font-family: "JetBrains Mono", monospace; }
+</style>
+</head>
+<body>
+<div id="card">
+  <svg class="crescent" viewBox="0 0 1280 640"></svg>
+  <img src="../logo.svg" width="250" height="250" alt="">
+  <div class="text">
+    <div class="word">moodle<span class="kit">kit</span></div>
+    <div class="tag">Your Moodle, <b>programmable.</b></div>
+    <div class="pills">
+      <div class="pill" style="background:#e8c170">🐍 Python API</div>
+      <div class="pill" style="background:#3dd6c4"><span class="mono">&gt;_</span> CLI</div>
+      <div class="pill" style="background:#a99bff">🤖 AI agents</div>
+    </div>
+  </div>
+</div>
+<script>
+  // Royal Crescent line sketch along the bottom, same as the video.
+  {
+  const svg = document.querySelector(".crescent"), n = 46, cx = 640, rx = 600, top = 486, depth = 56, h = 64;
+  const pt = (i) => { const a = Math.PI * (i / n); return [cx - rx * Math.cos(a), top + depth * Math.sin(a)]; };
+  let d = "", base = "", cols = "";
+  for (let i = 0; i <= n; i++) {
+    const [x, y] = pt(i);
+    d += (i ? "L" : "M") + x + " " + y; base += (i ? "L" : "M") + x + " " + (y + h);
+    if (i % 2 === 0) cols += `M${x} ${y + 10} V${y + h}`;
+  }
+  svg.innerHTML = `<g fill="none" stroke="#e8c170" stroke-linecap="round"><path d="${d}" stroke-width="2.5"/>
+    <path d="${base}" stroke-width="2"/><path d="${cols}" stroke-width="1.6"/></g>`;
+  }
+  window.ready = Promise.all([document.fonts.ready, ...[...document.images].map((i) => i.decode())]).then(() => true);
+</script>
+</body>
+</html>
