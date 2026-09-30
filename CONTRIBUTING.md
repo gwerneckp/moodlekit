@@ -13,7 +13,7 @@ Moodle sites differ a lot, so moodlekit may not work on yours out of the box. Th
 ## Ground rules
 
 - **Never commit real course material or real cookies**, not even in test fixtures. Write minimal synthetic HTML/JSON that reproduces the structure.
-- Keep it simple: prefer extending the `Moodle` class over adding layers. New dependencies need a good reason (heavy ones go in an optional extra).
+- Keep it simple: no feature bloat. Prefer extending the `Moodle` class over adding layers. New dependencies need a good reason (heavy ones go in an optional extra).
 - Helpers go in a class: a private method on the class that uses them, or a staticmethod on `Utils` if shared. No loose module-level `_functions`.
 - Prefer Moodle's AJAX web-service functions over scraping wherever one exists.
 
@@ -25,4 +25,4 @@ uv run pytest
 uv run ruff check src tests
 ```
 
-Tests are offline: HTTP is mocked with [responses](https://github.com/getsentry/responses), and sync uses a fake client.
+Tests are offline: HTTP is mocked with [responses](https://github.com/getsentry/responses), and browser access is monkeypatched.

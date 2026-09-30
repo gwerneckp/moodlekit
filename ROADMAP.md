@@ -5,11 +5,11 @@ moodlekit is built around the **University of Bath's Moodle**: new features are 
 ## Now (0.1): working at Bath
 
 - [x] Log in from a browser session (Firefox, Chrome, Edge, Brave, Safari... via browser-cookie3) or a pasted cookie
-- [x] Re-read the browser once when the session expires
+- [x] Sensible defaults: Bath's Moodle, your system's default browser
+- [x] Not logged in? Open Moodle in your browser and wait; re-read the browser when the session expires
 - [x] Courses, course contents (incl. not-yet-released items), files, folders, page text, deadlines
 - [x] Downloads that follow redirects to cloud storage and never overwrite
 - [x] HTML lecture notes to one PDF (optional `[pdf]` extra)
-- [x] `sync` with `moodle.toml`: layouts, excludes, dry run, `--mark-seen`, update detection, retry on failure
 - [x] `moodle` CLI with `--json` everywhere
 - [x] MCP server (optional `[mcp]` extra)
 - [x] Offline test suite
@@ -34,10 +34,9 @@ Not a promise of support elsewhere, just making forks easier:
 - [ ] Assignment details: due date, submission status, feedback and grade (`mod_assign_*` where AJAX-enabled, else scraping)
 - [ ] Grades overview
 - [ ] Forum posts and announcements, as text ("what did the lecturer post this week?")
-- [ ] Availability dates for unreleased items ("opens 5 Oct 12:15"), so sync can say *when*
+- [ ] Availability dates for unreleased items ("opens 5 Oct 12:15")
 - [ ] Book (`mod_book`) and Page (`mod_page`) to Markdown/PDF
 - [ ] Panopto/lecture-recording links collected per week
-- [ ] `sync` notifications (desktop notification, or a summary file an agent can read)
 
 ## Maybe / needs thought
 
@@ -46,6 +45,8 @@ Not a promise of support elsewhere, just making forks easier:
 - Other LMSs (Canvas, Blackboard). Out of scope for this package.
 
 ## Not planned
+
+- Syncing/mirroring courses into folders. Tried it, it was feature bloat: `moodle ls`, `moodle get` and a few lines of Python (or an agent) do the job.
 
 - Handling your password or automating SSO logins. Your browser does the logging in, and moodlekit only reuses the session.
 - Bulk crawling of courses you aren't enrolled in.

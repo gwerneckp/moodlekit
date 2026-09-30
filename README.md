@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/gwerneckp/moodlekit/blob/main/assets/demo.mp4">
-    <img src="https://raw.githubusercontent.com/gwerneckp/moodlekit/main/assets/demo.gif" alt="moodlekit demo: listing courses, seeing unreleased items, syncing new material, HTML notes to PDF, the Python API, and asking an agent what's new." width="800">
+    <img src="https://raw.githubusercontent.com/gwerneckp/moodlekit/main/assets/demo.gif" alt="moodlekit demo: listing courses, seeing unreleased items, reading pages, HTML notes to PDF, the Python API, and asking an agent what's new." width="800">
   </a>
   <br>
   <sub>▶️ <a href="https://github.com/gwerneckp/moodlekit/blob/main/assets/demo.mp4">Watch the video</a></sub>
@@ -20,11 +20,10 @@ Use Moodle from Python, the command line, or an AI agent, **with the login you a
 $ moodle courses
   61802  MA22038                MA22038: Probabilistic modelling / Probability 2
   ...
-$ moodle sync
-Downloaded:
-  [MA22038] Problem Sheet 1 (pdf)  ->  Probabilistic_Modelling_MA22038/Problem Sheets/MA22038-sheet1-2026.pdf
-Listed, not released yet:
-  [MA22038] Sheet 1 solutions to remaining questions (pdf)
+$ moodle ls MA22038
+## Problem Sheets
+  resource  Problem Sheet 1 (pdf)
+  resource  Sheet 1 solutions to remaining questions (pdf)  [not available yet]
 ```
 
 > [!NOTE]
@@ -37,7 +36,7 @@ Listed, not released yet:
 
 | Site | Moodle | Login | Status |
 |---|---|---|---|
-| University of Bath | 4.5 | Microsoft SSO | ✅ Tested: courses, contents, files, folders, pages, HTML notes to PDF, sync, CLI, MCP (Firefox and Chrome) |
+| University of Bath | 4.5 | Microsoft SSO | ✅ Tested: courses, contents, files, folders, pages, HTML notes to PDF, CLI, MCP (Firefox and Chrome) |
 | *yours?* | | | [open an issue](../../issues) or fork |
 
 ## What it can do
@@ -46,7 +45,6 @@ Listed, not released yet:
 - **Download** files and folders, and **turn HTML lecture notes into one PDF**.
 - **Read pages** as plain text (assignment briefs, forum posts, course diaries).
 - **Upcoming deadlines** across your courses.
-- **`sync`**: mirror chosen courses into your own folders and tell you what's new. Files you move or rename are not downloaded again, and a file the lecturer re-uploads shows up as *updated*.
 - Everything is available as a **Python library**, a **`moodle` command** (with `--json` for scripts and agents), and an optional **MCP server**.
 
 ## Install
@@ -65,22 +63,23 @@ Requires Python 3.11+.
 
 moodlekit doesn't handle your password or your SSO login. You log in to Moodle normally in your browser, and moodlekit reads that browser's session cookie (using [browser-cookie3](https://github.com/borisbabic/browser_cookie3)).
 
-1. Log in to your Moodle in **Firefox** (the default), or Chrome, Edge, Brave, Safari...
-2. Tell moodlekit your site:
-   ```bash
-   export MOODLE_URL=https://moodle.bath.ac.uk
-   moodle check          # "Logged in to https://moodle.bath.ac.uk, 15 courses visible."
-   ```
+```bash
+moodle check          # "Logged in to https://moodle.bath.ac.uk with firefox, 15 courses visible."
+```
 
-The cookie is read fresh every time and **never written to disk** by moodlekit. When the session expires, moodlekit re-reads the browser once, so staying logged in in your browser keeps it working.
+That's it. By default moodlekit uses **the University of Bath's Moodle** and **your system's default browser** (if it's one of the supported ones below, otherwise Firefox). If you're not logged in, it **opens Moodle in that browser**, waits while you log in, and then carries on with your command.
 
-Options, from highest priority to lowest:
+The cookie is read fresh every time and **never written to disk** by moodlekit. When the session expires, moodlekit re-reads the browser first, so staying logged in there keeps it working.
 
-| | flag | environment | `moodle.toml` |
+To change the defaults (flags win over environment variables):
+
+| | flag | environment | default |
 |---|---|---|---|
-| site | `--url` | `MOODLE_URL` | `url = "..."` |
-| browser | `--browser chrome` | `MOODLE_BROWSER` | `browser = "chrome"` |
-| raw cookie instead | `--cookie` | `MOODLE_COOKIE` | (not supported, keep secrets out of files) |
+| site | `--url moodle.example.ac.uk` | `MOODLE_URL` | `https://moodle.bath.ac.uk` |
+| browser | `--browser chrome` | `MOODLE_BROWSER` | your default browser |
+| raw cookie instead | `--cookie` | `MOODLE_COOKIE` | none |
+
+Supported browsers: Firefox, Chrome, Safari, Edge, Brave, Arc, Chromium, Opera, Vivaldi, LibreWolf.
 
 **Firefox tip:** Firefox is the most reliable choice on macOS. Chrome-based browsers encrypt cookies with a key in the system keychain, so you may get a keychain prompt.
 
@@ -97,7 +96,6 @@ moodle get <url> -o notes/                # download them (never overwrites: "x 
 moodle get <url> --pdf notes.pdf          # HTML notes -> one PDF   (needs [pdf])
 moodle read <url>                         # page text + file links
 moodle deadlines --days 14
-moodle sync [-n] [--mark-seen] [COURSE…]  # see below
 moodle mcp                                # MCP server               (needs [mcp])
 ```
 
@@ -108,7 +106,9 @@ Add `--json` before the command for machine-readable output, e.g. `moodle --json
 ```python
 from moodlekit import Moodle
 
-m = Moodle("https://moodle.bath.ac.uk", browser="firefox")
+m = Moodle()                                   # Bath + your default browser
+# m = Moodle("moodle.example.ac.uk", browser="chrome")
+m.login()                                      # optional: opens the browser if you're not logged in
 
 for course in m.courses():
     print(course.id, course.shortname, course.name)
@@ -130,54 +130,14 @@ Results are plain dataclasses (`Course`, `Activity`, `File`, `Event`, `Page`). `
 
 HTML to PDF: `PdfRenderer(m).render(activity_or_url, "notes.pdf")`.
 
-## Sync
-
-Put a `moodle.toml` at the root of your notes folder:
-
-```toml
-url = "https://moodle.bath.ac.uk"
-browser = "firefox"
-exclude = ["*(html)*"]            # skip activities whose name matches (case-insensitive globs)
-layout = "{section}/{filename}"   # {course} {section} {activity} {filename}
-render_html = true                # HTML material -> PDF (needs [pdf])
-
-[courses.MA22038]                 # shortname, id, or part of the course name
-path = "Year_2/Semester_1/Probabilistic_Modelling_MA22038"
-
-[courses.MA22014]
-path = "Year_2/Semester_1/Statistics_2A_MA22014"
-layout = "{filename}"             # per-course overrides: layout, exclude
-```
-
-```bash
-moodle sync -n            # dry run: "has anything been published?"
-moodle sync               # download what's new
-moodle sync MA22038       # just one course
-moodle sync --mark-seen   # adopting a folder you already filled by hand: record everything
-                          # as downloaded, without downloading
-```
-
-What it reports:
-
-- **Downloaded / Would download**: new files.
-- **Updated on Moodle**: a file you already had was re-uploaded. The new copy is saved next to the old one.
-- **New activities**: new assignments, forums, links, quizzes... (reported once, not downloaded).
-- **Listed, not released yet**: things like solutions that open on a date.
-- **Skipped**: HTML content when `render_html` is off.
-- **Failed**: will be retried on the next sync.
-
-It keeps a `.moodle-state.json` next to `moodle.toml`. It's keyed by file URL, and Moodle puts a revision number in that URL, so you can reorganise downloaded files however you like. Commit the state file if you want sync history shared across machines; add it to `.gitignore` otherwise.
-
-Pair it with cron/launchd, or an agent, for a weekly "what's new on Moodle" check.
-
 ## MCP server (AI agents)
 
 ```bash
 pip install "moodlekit[mcp]"
-claude mcp add moodle -e MOODLE_URL=https://moodle.bath.ac.uk -- moodle mcp
+claude mcp add moodle -- moodle mcp
 ```
 
-Tools: `list_courses`, `list_activities`, `list_files`, `read_page`, `download`, `upcoming_deadlines`, `whats_new` (a sync dry run, if a `moodle.toml` is found from the server's working directory).
+Tools: `list_courses`, `list_activities`, `list_files`, `read_page`, `download`, `upcoming_deadlines`. If you're not logged in, the first tool call opens Moodle in your browser and waits for you.
 
 Agents can also just use the CLI with `--json`, which is often simpler.
 
@@ -199,7 +159,7 @@ Only AJAX-enabled functions can be called this way, which is why some features n
 
 - **A Moodle session cookie is full access to your account.** moodlekit only sends it to your Moodle site, never logs or stores it, and has no telemetry. Don't paste your cookie into issues or chats.
 - **Course material is your university's copyright.** Download it for your own study, and don't redistribute it (including by committing it to a public repo).
-- **Be polite to your university's servers.** moodlekit makes about one request per item. Don't run sync every minute. Check your university's IT acceptable-use policy.
+- **Be polite to your university's servers.** moodlekit makes about one request per item, so don't loop it every minute. Check your university's IT acceptable-use policy.
 - This is an unofficial project, not affiliated with Moodle HQ or any university.
 
 ## Development
