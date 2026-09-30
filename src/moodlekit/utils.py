@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
@@ -33,8 +32,3 @@ class Utils:
             candidate = path.with_name(f"{path.stem} ({n}){path.suffix}")
             n += 1
         return candidate
-
-    @staticmethod
-    def safe_name(name: str) -> str:
-        """Make a string usable as a file/folder name."""
-        return re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "-", name).strip(" .-")
