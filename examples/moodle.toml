@@ -1,0 +1,23 @@
+# Put this at the root of your notes folder, then run `moodle sync -n` to preview.
+
+url = "https://moodle.bath.ac.uk"
+browser = "firefox"                 # the browser you're logged in to Moodle with
+
+# Activity names to skip (case-insensitive globs), for every course.
+exclude = ["*(html)*"]              # Bath often posts each file as both (pdf) and (html)
+
+# Where files land inside a course folder. Variables: {course} {section} {activity} {filename}
+layout = "{section}/{filename}"
+
+# Render HTML material (e.g. HTML-only lecture notes) to PDF. Needs: pip install "moodlekit[pdf]"
+render_html = true
+
+[courses.MA22038]                   # course shortname, id, or part of its name
+path = "Year_2/Semester_1/Probabilistic_Modelling_MA22038"
+
+[courses.MA22014]
+path = "Year_2/Semester_1/Statistics_2A_MA22014"
+
+[courses.MA22020]
+path = "Year_2/Semester_1/Advanced_Linear_Algebra_MA22020"
+exclude = ["*clearprint*"]          # per-course excludes are added to the global ones
