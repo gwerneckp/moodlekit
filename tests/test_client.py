@@ -5,7 +5,7 @@ import json
 import pytest
 import responses
 
-from moodlekit import Activity, Moodle, MoodleError, NotLoggedIn
+from moodlekit import Activity, Browser, Moodle, MoodleError, NotLoggedIn
 
 URL = "https://moodle.test"
 AJAX = f"{URL}/lib/ajax/service.php"
@@ -24,14 +24,46 @@ def ajax_ok(data):
     return json.dumps([{"error": False, "data": data}])
 
 
-def test_needs_auth():
-    with pytest.raises(ValueError):
-        Moodle(URL)
+def test_defaults_to_bath_and_default_browser(monkeypatch):
+    monkeypatch.setattr(Browser, "default", classmethod(lambda cls: "chrome"))
+    monkeypatch.setattr(Browser, "cookies", lambda name, host: {})
+    m = Moodle()
+    assert m.url == "https://moodle.bath.ac.uk" and m.host == "moodle.bath.ac.uk"
+    assert m.browser == "chrome"
 
 
-def test_cookie_without_session_cookie_is_rejected():
-    with pytest.raises(NotLoggedIn):
-        Moodle(URL, cookie="other=1")
+def test_url_without_scheme(monkeypatch):
+    monkeypatch.setattr(Browser, "cookies", lambda name, host: {})
+    m = Moodle("moodle.example.ac.uk/", browser="Firefox")
+    assert (m.url, m.host, m.browser) == ("https://moodle.example.ac.uk", "moodle.example.ac.uk",
+                                          "firefox")
+
+
+def test_not_logged_in_yet_is_fine_until_used():
+    with responses.RequestsMock() as rsps:
+        rsps.get(f"{URL}/my/", status=303, headers={"Location": f"{URL}/login/index.php"})
+        rsps.get(f"{URL}/login/index.php", body="<form>login</form>")
+        m = Moodle(URL, cookie="other=1")  # no MoodleSession cookie: no error yet
+        with pytest.raises(NotLoggedIn):
+            m.courses()
+
+
+def test_login_opens_browser_and_waits(monkeypatch):
+    opened, loads = [], []
+
+    def fake_cookies(name, host):
+        loads.append(name)
+        return {} if len(loads) < 3 else {"MoodleSessiontest": "fresh"}
+
+    monkeypatch.setattr(Browser, "cookies", fake_cookies)
+    monkeypatch.setattr(Browser, "open", lambda name, url: opened.append((name, url)))
+    monkeypatch.setattr("moodlekit.client.time.sleep", lambda s: None)
+    with responses.RequestsMock() as rsps:
+        rsps.get(f"{URL}/my/", body='"sesskey":"k1"')
+        m = Moodle(URL, browser="firefox")
+        m.login(wait=60)
+        assert m.sesskey == "k1"
+    assert opened == [("firefox", f"{URL}/my/")]
 
 
 def test_courses_unescapes_names(m):
@@ -149,11 +181,11 @@ def test_ajax_login_error_raises_not_logged_in(m):
 def test_browser_session_is_reloaded_once_on_expiry(monkeypatch):
     loads = []
 
-    def fake_cookies(self):
-        loads.append(self.browser)
+    def fake_cookies(name, host):
+        loads.append(name)
         return {"MoodleSessiontest": f"v{len(loads)}"}
 
-    monkeypatch.setattr(Moodle, "_read_browser_cookies", fake_cookies)
+    monkeypatch.setattr(Browser, "cookies", fake_cookies)
     with responses.RequestsMock() as rsps:
         rsps.get(f"{URL}/my/", body='"sesskey":"k1"')
         rsps.post(AJAX, body=json.dumps([{"error": True, "exception": {

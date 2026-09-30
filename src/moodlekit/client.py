@@ -19,6 +19,7 @@ from urllib.parse import unquote, urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from .browser import Browser
 from .utils import Utils
 
 LOGIN_ERRORS = {"servicerequireslogin", "invalidsesskey", "requireloginerror"}
@@ -84,56 +85,74 @@ class Page:
 class Moodle:
     """A logged-in Moodle site.
 
-    >>> m = Moodle("https://moodle.example.ac.uk", browser="firefox")
+    >>> m = Moodle()                      # University of Bath, your default browser
+    >>> m = Moodle("moodle.example.ac.uk", browser="chrome")
     >>> m.courses()
 
+    url:     the Moodle site (default: the University of Bath's). "https://" is optional.
     browser: read the session cookie from this browser each time it's needed
-             (firefox, chrome, edge, brave, chromium, opera, vivaldi, safari, ...).
+             (default: your system's default browser, if supported, else Firefox).
     cookie:  a session cookie instead, either "MoodleSessionXYZ=value" or just the value.
     """
 
-    def __init__(self, url: str, *, browser: str | None = None, cookie: str | None = None,
-                 timeout: float = 30):
-        if not (browser or cookie):
-            raise ValueError("Pass browser='firefox' (or chrome, edge...) or cookie='...'")
-        self.url = url.rstrip("/")
+    DEFAULT_URL = "https://moodle.bath.ac.uk"
+
+    def __init__(self, url: str | None = None, *, browser: str | None = None,
+                 cookie: str | None = None, timeout: float = 30):
+        self.url = self._normalize_url(url or self.DEFAULT_URL)
         self.host = urlparse(self.url).netloc
-        self.browser = browser
         self.cookie = cookie
+        self.browser = None if cookie else (browser or Browser.default()).lower()
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers["User-Agent"] = USER_AGENT
         self._sesskey = None
-        self._load_cookies()
+        self._load_cookies(required=False)  # not logged in yet is fine: login() can fix it
+
+    def login(self, wait: float = 300) -> None:
+        """Open Moodle in your browser and wait (up to `wait` seconds) until you've logged in."""
+        if not self.browser:
+            raise NotLoggedIn("The session cookie you passed is invalid or expired.")
+        Browser.open(self.browser, f"{self.url}/my/")
+        deadline = time.monotonic() + wait
+        while time.monotonic() < deadline:
+            time.sleep(2)
+            try:
+                self._load_cookies()
+                self.sesskey  # noqa: B018 - proves the session actually works
+                return
+            except NotLoggedIn:
+                continue
+        raise NotLoggedIn(f"Timed out waiting for you to log in to {self.url} in {self.browser}.")
 
     # ------------------------------------------------------------------ auth
 
-    def _load_cookies(self):
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        url = url.strip().rstrip("/")
+        return url if "://" in url else f"https://{url}"
+
+    def _load_cookies(self, required: bool = True):
         if self.browser:
-            cookies = self._read_browser_cookies()
-            where = f"{self.browser}"
+            try:
+                cookies = Browser.cookies(self.browser, self.host)
+            except ValueError:
+                raise
+            except Exception as e:  # locked profile, keychain denied, browser not installed...
+                raise NotLoggedIn(f"Couldn't read cookies from {self.browser}: {e}") from e
         else:
             cookies = self._parse_cookie(self.cookie)
-            where = "the cookie you passed"
-        if not any(name.startswith("MoodleSession") for name in cookies):
-            raise NotLoggedIn(f"No Moodle session cookie found in {where}. "
-                              f"Log in to {self.url} there first.")
         self.session.cookies.clear()
         for name, value in cookies.items():
             self.session.cookies.set(name, value, domain=self.host, path="/")
         self._sesskey = None
+        if required and not any(name.startswith("MoodleSession") for name in cookies):
+            raise NotLoggedIn(self._login_hint())
 
-    def _read_browser_cookies(self) -> dict:
-        import browser_cookie3
-
-        loader = getattr(browser_cookie3, self.browser.lower(), None)
-        if loader is None or self.browser.startswith("_"):
-            raise ValueError(f"Unsupported browser {self.browser!r}")
-        try:
-            jar = loader(domain_name=self.host)
-        except Exception as e:  # locked profile, keychain denied, browser not installed...
-            raise NotLoggedIn(f"Couldn't read cookies from {self.browser}: {e}") from e
-        return {c.name: c.value for c in jar if c.domain.lstrip(".") in self.host}
+    def _login_hint(self) -> str:
+        if self.browser:
+            return f"Not logged in to {self.url} in {self.browser}."
+        return "The session cookie you passed is invalid or expired."
 
     def _parse_cookie(self, cookie: str) -> dict:
         if "=" in cookie:
@@ -149,9 +168,7 @@ class Moodle:
         if retry and self.browser:
             self._load_cookies()  # the browser may hold a fresher session
             return
-        how = (f"log in to {self.url} in {self.browser}" if self.browser
-               else "pass a fresh session cookie")
-        raise NotLoggedIn(f"Moodle session expired or invalid: {how}.")
+        raise NotLoggedIn(self._login_hint())
 
     @property
     def sesskey(self) -> str:
