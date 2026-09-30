@@ -1,21 +1,24 @@
 """MCP server: the same functions as the CLI, as tools for AI agents.
 
     pip install "moodlekit[mcp]"
-    claude mcp add moodle -e MOODLE_URL=https://moodle.example.ac.uk -- moodle mcp
+    claude mcp add moodle -- moodle mcp
 
-Configuration comes from the environment (MOODLE_URL, MOODLE_BROWSER / MOODLE_COOKIE)
-or a moodle.toml in the working directory or its parents.
+Uses the University of Bath's Moodle and your default browser unless MOODLE_URL /
+MOODLE_BROWSER / MOODLE_COOKIE say otherwise. If you're not logged in, the first tool
+call opens Moodle in your browser and waits for you to log in.
 """
 
 from __future__ import annotations
 
 from functools import wraps
 
-from .client import Moodle, MoodleError
+from .client import Moodle, MoodleError, NotLoggedIn
 from .utils import Utils
 
 
 class McpServer:
+    LOGIN_WAIT = 180  # seconds a tool call waits for you to log in
+
     def __init__(self):
         self._moodle: Moodle | None = None
 
@@ -32,7 +35,6 @@ class McpServer:
             from mcp.server.mcpserver import MCPServer
         except ImportError as e:
             raise MoodleError('The MCP server needs: pip install "moodlekit[mcp]" (mcp>=2)') from e
-        from .sync import Sync
 
         server = MCPServer("moodle")
 
@@ -40,7 +42,13 @@ class McpServer:
             @wraps(fn)  # keep the signature and docstring: that's what the agent sees
             def wrapper(*args, **kwargs):
                 try:
-                    return Utils.to_dict(fn(*args, **kwargs))
+                    try:
+                        return Utils.to_dict(fn(*args, **kwargs))
+                    except NotLoggedIn:
+                        if not self.moodle.browser:
+                            raise
+                        self.moodle.login(wait=self.LOGIN_WAIT)
+                        return Utils.to_dict(fn(*args, **kwargs))
                 except MoodleError as e:
                     return {"error": str(e)}
             return server.tool()(wrapper)
@@ -75,13 +83,5 @@ class McpServer:
         def upcoming_deadlines(days: int = 30):
             """Upcoming due dates across all courses."""
             return self.moodle.deadlines(days)
-
-        @tool
-        def whats_new():
-            """Check the courses in moodle.toml for new or updated material (no downloads)."""
-            config = Sync.find_config()
-            if not config:
-                return {"error": "No moodle.toml found"}
-            return Sync(self.moodle, config).run(dry_run=True).changes
 
         server.run()

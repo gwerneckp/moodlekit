@@ -6,10 +6,8 @@ import argparse
 import json
 import os
 import sys
-from pathlib import Path
 
 from .client import Moodle, MoodleError, NotLoggedIn
-from .sync import Sync
 from .utils import Utils
 
 
@@ -26,43 +24,38 @@ class Cli:
             sys.exit(130)
 
     @staticmethod
-    def client(args=None, config_path: Path | None = None) -> Moodle:
-        """Build a client from flags > environment > moodle.toml."""
-        config_path = config_path or Sync.find_config()
-        config = Sync.load_config(config_path) if config_path else {}
-        url = getattr(args, "url", None) or os.environ.get("MOODLE_URL") or config.get("url")
+    def client(args=None) -> Moodle:
+        """Build a client from flags > environment > defaults (Bath, your default browser)."""
+        url = getattr(args, "url", None) or os.environ.get("MOODLE_URL")
         cookie = getattr(args, "cookie", None) or os.environ.get("MOODLE_COOKIE")
-        browser = (getattr(args, "browser", None) or os.environ.get("MOODLE_BROWSER")
-                   or config.get("browser"))
-        if not url:
-            raise ValueError("No Moodle URL: pass --url, set MOODLE_URL, or add url to "
-                             "moodle.toml")
-        if cookie:
-            return Moodle(url, cookie=cookie)
-        return Moodle(url, browser=browser or "firefox")
+        browser = getattr(args, "browser", None) or os.environ.get("MOODLE_BROWSER")
+        return Moodle(url, browser=browser, cookie=cookie)
 
     def run(self, args):
-        out = Output(args.json)
-
         if args.command == "mcp":
             from .mcp import McpServer
 
             return McpServer().serve()
 
-        if args.command == "sync":
-            config_path = Path(args.config) if args.config else Sync.find_config()
-            if not config_path:
-                raise ValueError("No moodle.toml here or in any parent folder (see README)")
-            report = Sync(self.client(args, config_path), config_path).run(
-                courses=args.courses or None, dry_run=args.dry_run, mark_seen=args.mark_seen)
-            if args.mark_seen:
-                return out.message("Recorded everything currently on Moodle as seen.")
-            return out.sync(report, args.dry_run)
-
         m = self.client(args)
+        try:
+            self._dispatch(args, m)
+        except NotLoggedIn:
+            if not m.browser:
+                raise
+            print(f"Not logged in to {m.url}. Opening it in {m.browser}: log in there and "
+                  "I'll carry on automatically...", file=sys.stderr, flush=True)
+            m.login()
+            print("Logged in.", file=sys.stderr, flush=True)
+            self._dispatch(args, m)
+
+    def _dispatch(self, args, m: Moodle):
+        out = Output(args.json)
         if args.command == "check":
             n = len(m.courses("all"))
-            out.message(f"Logged in to {m.url}, {n} courses visible.", {"ok": True, "courses": n})
+            how = m.browser or "a cookie"
+            out.message(f"Logged in to {m.url} with {how}, {n} courses visible.",
+                        {"ok": True, "url": m.url, "browser": m.browser, "courses": n})
         elif args.command == "courses":
             out.rows(m.courses(args.which), lambda c: f"{c.id:>7}  {c.shortname:<22} {c.name}")
         elif args.command == "ls":
@@ -91,10 +84,11 @@ class Cli:
     def _parser() -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
             prog="moodle", description="Use Moodle from the command line with your browser login.")
-        parser.add_argument("--url", help="Moodle site, e.g. https://moodle.example.ac.uk "
-                                          "(or MOODLE_URL, or url in moodle.toml)")
+        parser.add_argument("--url", help=f"Moodle site (default: {Moodle.DEFAULT_URL}, "
+                                          "or MOODLE_URL)")
         parser.add_argument("--browser", help="browser you're logged in with: firefox, chrome, "
-                                              "edge, brave, safari... (or MOODLE_BROWSER)")
+                                              "safari, edge, brave, arc... (default: your system "
+                                              "default, or MOODLE_BROWSER)")
         parser.add_argument("--cookie", help="session cookie instead of a browser "
                                              "(or MOODLE_COOKIE)")
         parser.add_argument("--json", action="store_true", help="output JSON")
@@ -117,13 +111,6 @@ class Cli:
         p.add_argument("url")
         p = sub.add_parser("deadlines", help="upcoming due dates")
         p.add_argument("--days", type=int, default=30)
-        p = sub.add_parser("sync", help="download new files for the courses in moodle.toml")
-        p.add_argument("courses", nargs="*", help="only these course keys from moodle.toml")
-        p.add_argument("-n", "--dry-run", action="store_true", help="only show what's new")
-        p.add_argument("--mark-seen", action="store_true",
-                       help="record everything as downloaded without downloading "
-                            "(adopt a folder)")
-        p.add_argument("--config", help="path to moodle.toml (default: search upwards)")
         sub.add_parser("mcp", help="run an MCP server (needs moodlekit[mcp])")
         return parser
 
@@ -158,23 +145,6 @@ class Output:
                 print(f"\n## {section}")
             flag = "" if a.available else "  [not available yet]"
             print(f"  {a.type:<9} {a.name}{flag}\n            {a.url}")
-
-    def sync(self, report, dry_run):
-        if self.as_json:
-            return self._json(report.changes)
-        labels = {"downloaded": "Would download" if dry_run else "Downloaded",
-                  "updated": "Updated on Moodle" + (" (would download)" if dry_run else ""),
-                  "new-activity": "New activities", "upcoming": "Listed, not released yet",
-                  "skipped": "Skipped", "failed": "Failed (will retry next sync)"}
-        for kind, label in labels.items():
-            changes = report.of(kind)
-            if changes:
-                print(f"\n{label}:")
-                for c in changes:
-                    detail = c.path or c.note or ""
-                    print(f"  [{c.course}] {c.activity}" + (f"  ->  {detail}" if detail else ""))
-        if not report.changes:
-            print("Nothing new.")
 
     def _json(self, data):
         print(json.dumps(Utils.to_dict(data), indent=1, ensure_ascii=False))
