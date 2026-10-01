@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="moodlekit logo" width="128">
+  <img src="https://raw.githubusercontent.com/gwerneckp/moodlekit/main/assets/logo.svg" alt="moodlekit logo" width="128">
 </p>
 
 <h1 align="center">moodlekit</h1>
@@ -37,7 +37,7 @@ $ moodle ls MA22038
 | Site | Moodle | Login | Status |
 |---|---|---|---|
 | University of Bath | 4.5 | Microsoft SSO | ✅ Tested: courses, contents, files, folders, pages, HTML notes to PDF, CLI, MCP (Firefox and Chrome) |
-| *yours?* | | | [open an issue](../../issues) or fork |
+| *yours?* | | | [open an issue](https://github.com/gwerneckp/moodlekit/issues) or fork |
 
 ## What it can do
 
@@ -54,8 +54,6 @@ pip install moodlekit                      # library + `moodle` command
 pip install "moodlekit[pdf]"               # + HTML-notes-to-PDF (then: playwright install chromium)
 pip install "moodlekit[mcp]"               # + MCP server for AI agents
 ```
-
-Until it's on PyPI, install from a clone: `pip install -e ".[pdf,mcp]"`, or `uv sync --all-extras`.
 
 Requires Python 3.11+.
 
@@ -153,7 +151,7 @@ Moodle's official web-service API needs a per-user token. Many SSO universities 
 | Folders, embedded files, page text | **HTML scraping** (`#region-main`) | **High**: theme-dependent |
 | HTML notes to PDF | Headless Chromium with your session | Medium |
 
-Only AJAX-enabled functions can be called this way, which is why some features need scraping. See [ROADMAP.md](ROADMAP.md) for what's next.
+Only AJAX-enabled functions can be called this way, which is why some features need scraping. See [ROADMAP.md](https://github.com/gwerneckp/moodlekit/blob/main/ROADMAP.md) for what's next.
 
 ## Security and fair use
 
@@ -170,8 +168,8 @@ uv run pytest            # offline tests with mocked HTTP; no real Moodle needed
 uv run ruff check src tests
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](https://github.com/gwerneckp/moodlekit/blob/main/CONTRIBUTING.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/gwerneckp/moodlekit/blob/main/LICENSE)
