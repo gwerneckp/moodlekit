@@ -1,6 +1,6 @@
 """Render HTML material (e.g. lecture notes published as a multi-page HTML book) to one PDF.
 
-Needs the optional extra:  pip install "moodlekit[pdf]"  &&  playwright install chromium
+Needs the optional extra:  pip install "pymoodlekit[pdf]"  &&  playwright install chromium
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class PdfRenderer:
             from playwright.sync_api import sync_playwright
             from pypdf import PdfWriter
         except ImportError as e:
-            raise MoodleError('HTML to PDF needs: pip install "moodlekit[pdf]" && '
+            raise MoodleError('HTML to PDF needs: pip install "pymoodlekit[pdf]" && '
                               "playwright install chromium") from e
 
         index = self._index_url(target)

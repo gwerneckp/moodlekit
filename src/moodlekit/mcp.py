@@ -1,6 +1,6 @@
 """MCP server: the same functions as the CLI, as tools for AI agents.
 
-    pip install "moodlekit[mcp]"
+    pip install "pymoodlekit[mcp]"
     claude mcp add moodle -- moodle mcp
 
 Uses the University of Bath's Moodle and your default browser unless MOODLE_URL /
@@ -34,7 +34,7 @@ class McpServer:
         try:
             from mcp.server.mcpserver import MCPServer
         except ImportError as e:
-            raise MoodleError('The MCP server needs: pip install "moodlekit[mcp]" (mcp>=2)') from e
+            raise MoodleError('The MCP server needs: pip install "pymoodlekit[mcp]" (mcp>=2)') from e
 
         server = MCPServer("moodle")
 

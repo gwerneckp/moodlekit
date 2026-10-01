@@ -50,9 +50,9 @@ $ moodle ls MA22038
 ## Install
 
 ```bash
-pip install moodlekit                      # library + `moodle` command
-pip install "moodlekit[pdf]"               # + HTML-notes-to-PDF (then: playwright install chromium)
-pip install "moodlekit[mcp]"               # + MCP server for AI agents
+pip install pymoodlekit                      # library + `moodle` command
+pip install "pymoodlekit[pdf]"               # + HTML-notes-to-PDF (then: playwright install chromium)
+pip install "pymoodlekit[mcp]"               # + MCP server for AI agents
 ```
 
 Requires Python 3.11+.
@@ -131,7 +131,7 @@ HTML to PDF: `PdfRenderer(m).render(activity_or_url, "notes.pdf")`.
 ## MCP server (AI agents)
 
 ```bash
-pip install "moodlekit[mcp]"
+pip install "pymoodlekit[mcp]"
 claude mcp add moodle -- moodle mcp
 ```
 
