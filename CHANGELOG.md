@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 (unreleased)
+
+- Fix: on multi-profile Chromium browsers, cookies could be read from the wrong profile,
+  causing spurious "not logged in" prompts. Now reads the last-used profile instead.
+
 ## 0.1.0 (unreleased)
 
 First version, built and tested at the University of Bath.

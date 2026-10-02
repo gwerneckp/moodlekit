@@ -1,6 +1,6 @@
 [project]
 name = "pymoodlekit"
-version = "0.1.0"
+version = "0.1.1"
 description = "Use Moodle programmatically with your existing browser login. Works with SSO, no API token needed."
 readme = "README.md"
 requires-python = ">=3.11"
