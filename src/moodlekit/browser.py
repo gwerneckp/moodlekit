@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import plistlib
 import subprocess
 import sys
@@ -29,6 +31,21 @@ class Browser:
     }
     FALLBACK = "firefox"
 
+    # User data dir per OS, keyed by browser name (for resolving the last-used profile).
+    CHROMIUM_USER_DATA_DIRS = {
+        "chrome": ("~/Library/Application Support/Google/Chrome",
+                   "~/.config/google-chrome", "Google/Chrome/User Data"),
+        "edge": ("~/Library/Application Support/Microsoft Edge",
+                 "~/.config/microsoft-edge", "Microsoft/Edge/User Data"),
+        "brave": ("~/Library/Application Support/BraveSoftware/Brave-Browser",
+                  "~/.config/BraveSoftware/Brave-Browser", "BraveSoftware/Brave-Browser/User Data"),
+        "chromium": ("~/Library/Application Support/Chromium",
+                     "~/.config/chromium", "Chromium/User Data"),
+        "vivaldi": ("~/Library/Application Support/Vivaldi",
+                    "~/.config/vivaldi", "Vivaldi/User Data"),
+        "arc": ("~/Library/Application Support/Arc/User Data", None, None),
+    }
+
     @classmethod
     def default(cls) -> str:
         """The system's default browser if we support it, else Firefox."""
@@ -52,8 +69,32 @@ class Browser:
         loader = getattr(browser_cookie3, name, None) if name in cls.SUPPORTED else None
         if loader is None:
             raise ValueError(f"Unsupported browser {name!r}. Supported: {', '.join(cls.SUPPORTED)}")
-        jar = loader(domain_name=host)
+        jar = loader(cookie_file=cls._chromium_cookie_file(name), domain_name=host)
         return {c.name: c.value for c in jar if c.domain.lstrip(".") in host}
+
+    @classmethod
+    def _chromium_cookie_file(cls, name: str) -> str | None:
+        """The Cookies file of the last-used Chromium profile, or None to defer to the default."""
+        dirs = cls.CHROMIUM_USER_DATA_DIRS.get(name)
+        if not dirs:
+            return None
+        mac, linux, windows = dirs
+        if sys.platform == "darwin":
+            base = mac
+        elif sys.platform.startswith("win"):
+            base = windows and os.path.join(os.environ.get("LOCALAPPDATA", ""), windows)
+        else:
+            base = linux
+        if not base:
+            return None
+        base = Path(base).expanduser()
+        try:
+            state = json.loads((base / "Local State").read_text(encoding="utf-8"))
+            profile = state["profile"]["last_used"]
+        except (OSError, ValueError, KeyError):
+            return None
+        cookie_file = base / profile / "Cookies"
+        return str(cookie_file) if cookie_file.exists() else None
 
     @classmethod
     def open(cls, name: str, url: str):
